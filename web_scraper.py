@@ -117,22 +117,3 @@ ranked = sorted(
 
 for opponent, difficulty in ranked:
     print(f"{opponent}: {difficulty}")
-
-# --------  Debugging test 1
-# counter=0
-# for match in atleti_matches:
-#     counter += 1
-#     print(match)
-# print(counter)
-
-# print("\n\n\n")
-
-# --------  Debugging test 2
-# for opponent, stats in calculate_rivalries(atleti_matches).items():
-#     print(opponent, stats)
-
-# print("\n\n\n")
-
-# --------  Debugging test 3
-# rivalries = calculate_rivalries(atleti_matches)
-# print(assign_difficulty(rivalries))
