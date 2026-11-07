@@ -1,18 +1,26 @@
 import requests
 import csv
 import io
+import itertools                                    # combines iterables
+import time                                         # measures execution time
+from concurrent.futures import ThreadPoolExecutor   # manages concurrent network requests
 
-# This is the link to the CSV that you can download from the website for the 24/25 season
-url = "https://www.football-data.co.uk/mmz4281/2425/SP1.csv"  
+# This provides the links to the CSV that you can download from the website for 2015–16 through 2024–25.
+season_urls = [
+    f"https://www.football-data.co.uk/mmz4281/{year:02d}{year+1:02d}/SP1.csv"
+    for year in range(15, 25)
+]
 
-#Retrieve the resource
-response = requests.get(url)
+def download_laliga_season_csv(url):
+    #Retrieve the resource
+    response = requests.get(url, timeout=15)
 
-# Raise an exception if there is a 400 or 500 error 
-response.raise_for_status()
+    # Raise an exception if there is a 400 or 500 error 
+    response.raise_for_status()
 
-# csv.DictReader turns each row in the table into a dictionary. Column Title: Row Value at that column. matches is an iterator
-matches = csv.DictReader(io.StringIO(response.text))
+    # csv.DictReader turns each row in the table into a dictionary. Column Title: Row Value at that column. matches is an iterator
+    matches = csv.DictReader(io.StringIO(response.text))
+    return matches
 
 atleti_matches = []
 
@@ -38,6 +46,14 @@ def normalize_match(match: dict):
         "goals_conceded": goals_conceded
     }            
     return atleti_match
+
+# Download multiple La Liga seasons concurrently using 5 worker threads
+with ThreadPoolExecutor(max_workers=5) as executor:
+    seasons = list(executor.map(download_laliga_season_csv, season_urls))
+
+# Combine all downloaded seasons into one iterator of matches
+matches = itertools.chain.from_iterable(seasons)
+
 
 # Data parallelism because it does the same task on many rows in the csv table
 # Iterator of atleti_matches where each element is a normalized dictionary (only contains the fields we care about)
