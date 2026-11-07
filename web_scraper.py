@@ -5,11 +5,8 @@ import itertools                                    # combines iterables
 import time                                         # measures execution time
 from concurrent.futures import ThreadPoolExecutor   # manages concurrent network requests
 
-# This provides the links to the CSV that you can download from the website for 2015–16 through 2024–25.
-season_urls = [
-    f"https://www.football-data.co.uk/mmz4281/{year:02d}{year+1:02d}/SP1.csv"
-    for year in range(15, 25)
-]
+
+# Functions
 
 def download_laliga_season_csv(url):
     #Retrieve the resource
@@ -21,8 +18,6 @@ def download_laliga_season_csv(url):
     # csv.DictReader turns each row in the table into a dictionary. Column Title: Row Value at that column. matches is an iterator
     matches = csv.DictReader(io.StringIO(response.text))
     return matches
-
-atleti_matches = []
 
 def is_atleti_match(match: dict) -> bool:
     return match["HomeTeam"] == "Ath Madrid" or match["AwayTeam"] == "Ath Madrid"
@@ -46,18 +41,6 @@ def normalize_match(match: dict):
         "goals_conceded": goals_conceded
     }            
     return atleti_match
-
-# Download multiple La Liga seasons concurrently using 5 worker threads
-with ThreadPoolExecutor(max_workers=5) as executor:
-    seasons = list(executor.map(download_laliga_season_csv, season_urls))
-
-# Combine all downloaded seasons into one iterator of matches
-matches = itertools.chain.from_iterable(seasons)
-
-
-# Data parallelism because it does the same task on many rows in the csv table
-# Iterator of atleti_matches where each element is a normalized dictionary (only contains the fields we care about)
-atleti_matches = map(normalize_match, filter(is_atleti_match, matches))
 
 def calculate_rivalries(atleti_matches) -> dict:
     rivalries = {}
@@ -106,14 +89,39 @@ def assign_difficulty(rivalries: dict):
 
     return opponent_difficulties
 
-rivalries = calculate_rivalries(atleti_matches)
-difficulties = assign_difficulty(rivalries)
 
-ranked = sorted(
-    difficulties.items(),
-    key=lambda item: item[1],
-    reverse=True
-)
+def main():
+    # This provides the links to the CSV that you can download from the website for 2015–16 through 2024–25.
+    season_urls = [
+    f"https://www.football-data.co.uk/mmz4281/{year:02d}{year+1:02d}/SP1.csv"
+    for year in range(15, 25)
+    ]
 
-for opponent, difficulty in ranked:
-    print(f"{opponent}: {difficulty}")
+    atleti_matches = []
+
+    # Download multiple La Liga seasons concurrently using 5 worker threads
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        seasons = list(executor.map(download_laliga_season_csv, season_urls))
+
+    # Combine all downloaded seasons into one iterator of matches
+    matches = itertools.chain.from_iterable(seasons)
+
+
+    # Data parallelism because it does the same task on many rows in the csv table
+    # Iterator of atleti_matches where each element is a normalized dictionary (only contains the fields we care about)
+    atleti_matches = map(normalize_match, filter(is_atleti_match, matches))
+
+    rivalries = calculate_rivalries(atleti_matches)
+    difficulties = assign_difficulty(rivalries)
+
+    ranked = sorted(
+        difficulties.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    for opponent, difficulty in ranked:
+        print(f"{opponent}: {difficulty}")
+
+if __name__ == "__main__":
+    main()
